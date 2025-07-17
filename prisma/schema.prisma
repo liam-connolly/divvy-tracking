@@ -1,0 +1,40 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Station {
+  id            Int          @id(map: "Station_Pkey") @default(autoincrement())
+  communityArea Int?
+  latitude      String
+  longitude     String
+  name          String       @unique
+  days          StationDay[] @relation("stationId")
+}
+
+model StationDay {
+  id             Int     @id @default(autoincrement())
+  acousticArrive Int
+  acousticDepart Int
+  day            Int
+  stationId      Int
+  electricArrive Int
+  electricDepart Int
+  month          Int
+  year           Int
+  station        Station @relation("stationId", fields: [stationId], references: [id])
+
+  @@unique([day, month, year, stationId])
+  @@index([stationId])
+}
