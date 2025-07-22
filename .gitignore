@@ -39,7 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-#venv
-/divvy-tracking-backend
-/app/generated/prisma
