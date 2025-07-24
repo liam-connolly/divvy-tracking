@@ -1,3 +1,11 @@
+interface CommunityArea {
+  area_num_1: string;
+  community: string;
+  geometry: {
+    type: "Polygon" | "MultiPolygon";
+    coordinates: number[][][] | number[][][][];
+  };
+}
 import { Pool } from "pg";
 import * as fs from "fs";
 import * as path from "path";
@@ -6,13 +14,19 @@ import dotenv from "dotenv";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
-interface CommunityArea {
-  area_num_1: string;
-  community: string;
+interface GeoJSONFeature {
+  properties: {
+    area_num_1: string;
+    community: string;
+  };
   geometry: {
     type: "Polygon" | "MultiPolygon";
     coordinates: number[][][] | number[][][][];
   };
+}
+
+interface GeoJSONResponse {
+  features: GeoJSONFeature[];
 }
 
 let communityAreas: CommunityArea[] = [];
@@ -79,9 +93,9 @@ async function loadCommunityAreas(): Promise<void> {
       const response = await fetch(
         "https://data.cityofchicago.org/resource/igwz-8jzy.geojson"
       );
-      const data = await response.json();
+      const data = (await response.json()) as GeoJSONResponse;
 
-      communityAreas = data.features.map((f: any) => ({
+      communityAreas = data.features.map((f: GeoJSONFeature) => ({
         area_num_1: f.properties.area_num_1,
         community: f.properties.community,
         geometry: f.geometry,
@@ -135,16 +149,27 @@ async function importCSV(
   console.log(`📄 Processing ${fileName}...`);
 
   const csvContent = fs.readFileSync(filePath, "utf8");
-  const { data, errors } = parse(csvContent, {
-    header: true,
-    skipEmptyLines: true,
-  });
+  const parseResult = parse(csvContent, { header: true, skipEmptyLines: true });
 
-  if (errors.length > 0) {
-    console.log(`⚠️  ${errors.length} parsing errors in ${fileName}`);
+  if (parseResult.errors.length > 0) {
+    console.log(
+      `⚠️  ${parseResult.errors.length} parsing errors in ${fileName}`
+    );
+    console.log("First few errors:", parseResult.errors.slice(0, 3));
   }
 
+  const data = parseResult.data as any[];
   console.log(`  📊 ${data.length} rows found`);
+
+  // Debug: Check first row structure
+  if (data.length > 0) {
+    console.log("  🔍 First row columns:", Object.keys(data[0]));
+    console.log("  🔍 Sample data:", {
+      ride_id: data[0].ride_id || data[0].trip_id,
+      start_station: data[0].start_station_id || data[0].from_station_id,
+      start_name: data[0].start_station_name || data[0].from_station_name,
+    });
+  }
 
   // Track processed stations to avoid duplicates
   const processedStations = new Set<string>();
@@ -156,32 +181,48 @@ async function importCSV(
   for (const row of data) {
     // Start station
     const startId = row.start_station_id || row.from_station_id;
-    if (startId && !processedStations.has(startId)) {
-      await processStation(
-        pool,
-        startId,
-        row.start_station_name || row.from_station_name,
-        parseFloat(row.start_lat),
-        parseFloat(row.start_lng)
-      );
-      processedStations.add(startId);
-      stationCount++;
+    const startName = row.start_station_name || row.from_station_name;
+
+    if (startId && startName && !processedStations.has(startId)) {
+      try {
+        await processStation(
+          pool,
+          startId,
+          startName,
+          parseFloat(row.start_lat),
+          parseFloat(row.start_lng)
+        );
+        processedStations.add(startId);
+        stationCount++;
+      } catch (error) {
+        console.log(
+          `    ❌ Error processing start station ${startId}: ${error}`
+        );
+      }
     }
 
     // End station
     const endId = row.end_station_id || row.to_station_id;
-    if (endId && !processedStations.has(endId)) {
-      await processStation(
-        pool,
-        endId,
-        row.end_station_name || row.to_station_name,
-        parseFloat(row.end_lat),
-        parseFloat(row.end_lng)
-      );
-      processedStations.add(endId);
-      stationCount++;
+    const endName = row.end_station_name || row.to_station_name;
+
+    if (endId && endName && !processedStations.has(endId)) {
+      try {
+        await processStation(
+          pool,
+          endId,
+          endName,
+          parseFloat(row.end_lat),
+          parseFloat(row.end_lng)
+        );
+        processedStations.add(endId);
+        stationCount++;
+      } catch (error) {
+        console.log(`    ❌ Error processing end station ${endId}: ${error}`);
+      }
     }
   }
+
+  console.log(`  ✅ Processed ${stationCount} stations`);
 
   // Process trips in batches
   console.log("  🚲 Processing trips...");
@@ -189,6 +230,7 @@ async function importCSV(
 
   for (let i = 0; i < data.length; i += batchSize) {
     const batch = data.slice(i, i + batchSize);
+    let batchTripCount = 0;
 
     const client = await pool.connect();
     try {
@@ -198,51 +240,58 @@ async function importCSV(
         const rideId = row.ride_id || row.trip_id;
         if (!rideId) continue;
 
-        await client.query(
-          `
-          INSERT INTO trips_raw (
-            ride_id, rideable_type, started_at, ended_at,
-            start_station_name, start_station_id, end_station_name, end_station_id,
-            start_lat, start_lng, end_lat, end_lng, member_casual
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-          ON CONFLICT (ride_id) DO NOTHING
-        `,
-          [
-            rideId,
-            row.rideable_type || "classic_bike",
-            row.started_at || row.starttime,
-            row.ended_at || row.stoptime,
-            row.start_station_name || row.from_station_name,
-            row.start_station_id || row.from_station_id,
-            row.end_station_name || row.to_station_name,
-            row.end_station_id || row.to_station_id,
-            parseFloat(row.start_lat) || null,
-            parseFloat(row.start_lng) || null,
-            parseFloat(row.end_lat) || null,
-            parseFloat(row.end_lng) || null,
-            row.member_casual || row.usertype || "casual",
-          ]
-        );
+        try {
+          const result = await client.query(
+            `
+            INSERT INTO trips_raw (
+              ride_id, rideable_type, started_at, ended_at,
+              start_station_name, start_station_id, end_station_name, end_station_id,
+              start_lat, start_lng, end_lat, end_lng, member_casual
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            ON CONFLICT (ride_id) DO NOTHING
+          `,
+            [
+              rideId,
+              row.rideable_type || "classic_bike",
+              row.started_at || row.starttime,
+              row.ended_at || row.stoptime,
+              row.start_station_name || row.from_station_name,
+              row.start_station_id || row.from_station_id,
+              row.end_station_name || row.to_station_name,
+              row.end_station_id || row.to_station_id,
+              parseFloat(row.start_lat) || null,
+              parseFloat(row.start_lng) || null,
+              parseFloat(row.end_lat) || null,
+              parseFloat(row.end_lng) || null,
+              row.member_casual || row.usertype || "casual",
+            ]
+          );
 
-        tripCount++;
+          batchTripCount += result.rowCount || 0;
+        } catch (error) {
+          console.log(`    ⚠️  Error inserting trip ${rideId}: ${error}`);
+        }
       }
 
       await client.query("COMMIT");
+      tripCount += batchTripCount;
     } catch (error) {
       await client.query("ROLLBACK");
-      throw error;
+      console.log(`    ❌ Batch error: ${error}`);
     } finally {
       client.release();
     }
 
-    if ((i / batchSize + 1) % 10 === 0) {
+    if ((Math.floor(i / batchSize) + 1) % 10 === 0) {
       console.log(
-        `    Batch ${i / batchSize + 1}/${Math.ceil(data.length / batchSize)}`
+        `    Batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(
+          data.length / batchSize
+        )} - ${batchTripCount} trips inserted`
       );
     }
   }
 
-  console.log(`  ✅ ${stationCount} stations, ${tripCount} trips`);
+  console.log(`  ✅ ${stationCount} new stations, ${tripCount} trips inserted`);
   return { stations: stationCount, trips: tripCount };
 }
 

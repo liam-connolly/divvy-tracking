@@ -70,11 +70,14 @@ def download_divvy_data():
     extracted_count = 0
     
     for zip_file in zip_files:
-        # Check if CSV already exists
-        expected_csv = zip_file.replace('.zip', '.csv')
-        csv_path = os.path.join('divvy_data', os.path.basename(expected_csv))
+        # Check if CSV already exists with either naming convention
+        expected_csv_old = zip_file.replace('.zip', '.csv')
+        expected_csv_new = zip_file.replace('-divvy-tripdata.zip', '-divvy-publictripdata.csv')
         
-        if os.path.exists(csv_path):
+        csv_path_old = os.path.join('divvy_data', os.path.basename(expected_csv_old))
+        csv_path_new = os.path.join('divvy_data', os.path.basename(expected_csv_new))
+        
+        if os.path.exists(csv_path_old) or os.path.exists(csv_path_new):
             print(f"  ⏭️  Skipping {zip_file} (CSV already exists)")
             skipped_count += 1
             continue
@@ -112,30 +115,92 @@ def download_divvy_data():
                 with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
                     # List contents of ZIP
                     zip_contents = zip_ref.namelist()
-                    csv_files_in_zip = [f for f in zip_contents if f.endswith('.csv')]
+                    print(f"  📦 ZIP contains: {zip_contents}")
+                    
+                    # Find actual CSV files (ignore macOS metadata)
+                    csv_files_in_zip = [
+                        f for f in zip_contents 
+                        if f.endswith('.csv') and not f.startswith('__MACOSX') and not f.startswith('.')
+                    ]
+                    
+                    print(f"  🔍 Filtered CSV files: {csv_files_in_zip}")
                     
                     if not csv_files_in_zip:
-                        print(f"  ⚠️  No CSV files found in {zip_file}")
+                        print(f"  ⚠️  No valid CSV files found in {zip_file}")
+                        print(f"  🔍 All files in ZIP: {zip_contents}")
                         continue
                     
                     # Extract CSV files
                     for csv_file_in_zip in csv_files_in_zip:
-                        # Extract to divvy_data directory
-                        zip_ref.extract(csv_file_in_zip, 'divvy_data')
-                        extracted_path = os.path.join('divvy_data', csv_file_in_zip)
+                        print(f"  📤 Extracting {csv_file_in_zip}...")
                         
-                        # Rename to match expected naming convention if needed
-                        if csv_file_in_zip != os.path.basename(expected_csv):
-                            final_path = os.path.join('divvy_data', os.path.basename(expected_csv))
-                            if os.path.exists(final_path):
-                                os.remove(final_path)
-                            os.rename(extracted_path, final_path)
-                            extracted_path = final_path
+                        # Extract to a temporary location first
+                        zip_ref.extract(csv_file_in_zip, 'temp_extract')
+                        temp_csv_path = os.path.join('temp_extract', csv_file_in_zip)
                         
-                        # Get file size
-                        file_size_mb = os.path.getsize(extracted_path) / (1024 * 1024)
-                        print(f"  📄 Extracted: {os.path.basename(extracted_path)} ({file_size_mb:.1f} MB)")
-                        extracted_count += 1
+                        # Clean filename for final destination
+                        clean_filename = os.path.basename(csv_file_in_zip)
+                        final_path = os.path.join('divvy_data', clean_filename)
+                        
+                        # Read and examine the file content
+                        try:
+                            with open(temp_csv_path, 'rb') as temp_file:
+                                # Read first 500 bytes as bytes to see raw content
+                                raw_content = temp_file.read(500)
+                                print(f"  🔍 First 200 chars (raw): {raw_content[:200]}")
+                            
+                            with open(temp_csv_path, 'r', encoding='utf-8', errors='ignore') as temp_file:
+                                content = temp_file.read()
+                                print(f"  🔍 First 200 chars (text): {repr(content[:200])}")
+                                print(f"  🔍 File size: {len(content)} characters")
+                            
+                            # Check if file starts with proper CSV header
+                            lines = content.split('\n')
+                            print(f"  🔍 First 5 lines:")
+                            for i, line in enumerate(lines[:5]):
+                                print(f"    Line {i}: {repr(line[:100])}")
+                            
+                            csv_start = -1
+                            for i, line in enumerate(lines):
+                                if 'ride_id' in line or 'trip_id' in line:
+                                    csv_start = i
+                                    print(f"  ✅ Found CSV header at line {i}: {repr(line[:100])}")
+                                    break
+                            
+                            if csv_start >= 0:
+                                if csv_start > 0:
+                                    content = '\n'.join(lines[csv_start:])
+                                    print(f"  ✂️  Removed {csv_start} corrupted lines")
+                                
+                                # Write cleaned content
+                                with open(final_path, 'w', encoding='utf-8') as final_file:
+                                    final_file.write(content)
+                                
+                                # Verify the cleaned file
+                                file_size_mb = os.path.getsize(final_path) / (1024 * 1024)
+                                
+                                # Quick validation - check first line
+                                with open(final_path, 'r') as check_file:
+                                    first_line = check_file.readline().strip()
+                                    print(f"  ✅ Clean CSV: {clean_filename} ({file_size_mb:.1f} MB)")
+                                    print(f"  ✅ Header: {first_line}")
+                                    extracted_count += 1
+                            else:
+                                print(f"  ❌ Could not find valid CSV data in {csv_file_in_zip}")
+                                print(f"  🔍 Searched through {len(lines)} lines")
+                        
+                        except Exception as read_error:
+                            print(f"  ❌ Error processing {csv_file_in_zip}: {read_error}")
+                        
+                        finally:
+                            # Clean up temp file
+                            if os.path.exists(temp_csv_path):
+                                os.remove(temp_csv_path)
+                    
+                    # Clean up temp directory
+                    import shutil
+                    if os.path.exists('temp_extract'):
+                        shutil.rmtree('temp_extract')
             
             except zipfile.BadZipFile:
                 print(f"  ❌ Error: {zip_file} is not a valid ZIP file")
