@@ -167,4 +167,170 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
+// Get all stations grouped by name (handles duplicates)
+export async function getAllStationsGrouped(): Promise<StationWithStats[]> {
+  try {
+    const result = await query<StationWithStats>(`
+      SELECT 
+        MIN(s.id) as id,
+        MIN(s.station_id) as station_id,
+        s.name,
+        AVG(s.latitude) as latitude,
+        AVG(s.longitude) as longitude,
+        MIN(s.community_area) as community_area,
+        MIN(s.community_area_name) as community_area_name,
+        MIN(s.created_at) as created_at,
+        MAX(s.updated_at) as updated_at,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart), 0) as total_departures,
+        COALESCE(SUM(sd.acoustic_arrive + sd.electric_arrive), 0) as total_arrivals,
+        COALESCE(SUM(sd.electric_depart + sd.electric_arrive), 0) as electric_total,
+        COALESCE(SUM(sd.acoustic_depart + sd.acoustic_arrive), 0) as acoustic_total
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      GROUP BY s.name
+      ORDER BY total_departures DESC
+    `);
+
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting all grouped stations:", error);
+    return [];
+  }
+}
+
+// Get stations by community area (grouped)
+export async function getStationsByCommunityAreaGrouped(
+  communityArea: number,
+  year?: number,
+  month?: number
+): Promise<StationWithStats[]> {
+  try {
+    let queryText = `
+      SELECT 
+        MIN(s.id) as id,
+        MIN(s.station_id) as station_id,
+        s.name,
+        AVG(s.latitude) as latitude,
+        AVG(s.longitude) as longitude,
+        MIN(s.community_area) as community_area,
+        MIN(s.community_area_name) as community_area_name,
+        MIN(s.created_at) as created_at,
+        MAX(s.updated_at) as updated_at,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart), 0) as total_departures,
+        COALESCE(SUM(sd.acoustic_arrive + sd.electric_arrive), 0) as total_arrivals,
+        COALESCE(SUM(sd.electric_depart + sd.electric_arrive), 0) as electric_total,
+        COALESCE(SUM(sd.acoustic_depart + sd.acoustic_arrive), 0) as acoustic_total
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      WHERE MIN(s.community_area) = $1
+    `;
+
+    const params: any[] = [communityArea];
+
+    if (year) {
+      queryText += ` AND sd.year = $${params.length + 1}`;
+      params.push(year);
+    }
+
+    if (month) {
+      queryText += ` AND sd.month = $${params.length + 1}`;
+      params.push(month);
+    }
+
+    queryText += `
+      GROUP BY s.name
+      HAVING MIN(s.community_area) = $1
+      ORDER BY total_departures DESC
+    `;
+
+    const result = await query<StationWithStats>(queryText, params);
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting stations by community area (grouped):", error);
+    return [];
+  }
+}
+
+// Search stations by name (grouped)
+export async function searchStationsGrouped(
+  searchTerm: string
+): Promise<StationWithStats[]> {
+  try {
+    const result = await query<StationWithStats>(
+      `
+      SELECT 
+        MIN(s.id) as id,
+        MIN(s.station_id) as station_id,
+        s.name,
+        AVG(s.latitude) as latitude,
+        AVG(s.longitude) as longitude,
+        MIN(s.community_area) as community_area,
+        MIN(s.community_area_name) as community_area_name,
+        MIN(s.created_at) as created_at,
+        MAX(s.updated_at) as updated_at,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart), 0) as total_departures,
+        COALESCE(SUM(sd.acoustic_arrive + sd.electric_arrive), 0) as total_arrivals,
+        COALESCE(SUM(sd.electric_depart + sd.electric_arrive), 0) as electric_total,
+        COALESCE(SUM(sd.acoustic_depart + sd.acoustic_arrive), 0) as acoustic_total
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      WHERE s.name ILIKE $1
+      GROUP BY s.name
+      ORDER BY total_departures DESC
+    `,
+      [`%${searchTerm}%`]
+    );
+
+    return result.rows;
+  } catch (error) {
+    console.error("Error searching stations (grouped):", error);
+    return [];
+  }
+}
+
+// Get activity data for a specific station (by name) over time
+export async function getStationActivityOverTime(
+  stationName: string,
+  startYear?: number,
+  endYear?: number
+): Promise<any[]> {
+  try {
+    let queryText = `
+      SELECT 
+        sd.year,
+        sd.month,
+        SUM(sd.acoustic_depart + sd.electric_depart) as total_departures,
+        SUM(sd.acoustic_arrive + sd.electric_arrive) as total_arrivals,
+        SUM(sd.electric_depart + sd.electric_arrive) as electric_total,
+        SUM(sd.acoustic_depart + sd.acoustic_arrive) as acoustic_total
+      FROM stations s
+      JOIN station_days sd ON s.id = sd.station_id
+      WHERE s.name = $1
+    `;
+
+    const params: any[] = [stationName];
+
+    if (startYear) {
+      queryText += ` AND sd.year >= $${params.length + 1}`;
+      params.push(startYear);
+    }
+
+    if (endYear) {
+      queryText += ` AND sd.year <= $${params.length + 1}`;
+      params.push(endYear);
+    }
+
+    queryText += `
+      GROUP BY sd.year, sd.month
+      ORDER BY sd.year, sd.month
+    `;
+
+    const result = await query(queryText, params);
+    return result.rows;
+  } catch (error) {
+    console.error("Error getting station activity over time:", error);
+    return [];
+  }
+}
+
 export default pool;
