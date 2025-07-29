@@ -1,19 +1,33 @@
 import * as React from 'react';
-import { Button, Icon, Stack, Typography } from '@mui/material';
+import { Box, Button, Icon, Stack, Typography } from '@mui/material';
 import HelpIcon from '@mui/icons-material/Help';
+import FAQButton from '../FAQButton';
+import { exoFontFamily } from '@/app/ThemeProvider';
 
 export default function Header() {
   return (
-    <Stack
-      direction={'row'}
-      justifyContent={'space-between'}
-      alignItems={'center'}
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: 2,
+      }}
     >
-      <Typography variant='h3'>Divvy Bike Data</Typography>
-      <Button variant='outlined' sx={{ flexDirection: 'column' }}>
-        <HelpIcon />
-        <Typography variant='h6'>FAQ</Typography>
-      </Button>
-    </Stack>
+      <Typography
+        variant='h4'
+        component='h1'
+        sx={{
+          fontFamily: exoFontFamily,
+          display: 'flex-item',
+        }}
+      >
+        Divvy Station Bike Data
+      </Typography>
+      <Box sx={{ display: 'flex-item', mb: 1 }}>
+        <React.Suspense>
+          <FAQButton />
+        </React.Suspense>
+      </Box>
+    </div>
   );
 }

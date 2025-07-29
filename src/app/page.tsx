@@ -1,7 +1,9 @@
 'use client';
 
+import FAQContainer from '@/components/FAQContainer';
 import Header from '@/components/Header/Header';
 import { Container, Grid, Stack } from '@mui/material';
+import React from 'react';
 import { useEffect, useState } from 'react';
 
 interface CommunityArea {
@@ -87,7 +89,20 @@ export default function Home() {
         width='97vw'
       >
         {/* Heading */}
-        <Header />
+        <Grid
+          size={{ xs: 6 }}
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'stretch',
+            flexDirection: 'column',
+          }}
+        >
+          <Header />
+          <React.Suspense>
+            <FAQContainer />
+          </React.Suspense>
+        </Grid>
 
         {/* See Data by... */}
       </Grid>
