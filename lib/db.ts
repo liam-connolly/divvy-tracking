@@ -1,8 +1,13 @@
-import { Pool, PoolClient, QueryResult, QueryResultRow } from "pg";
-import { DatabaseStats, CommunityAreaStats, StationWithStats } from "./types";
+import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { DatabaseStats, CommunityAreaStats, StationWithStats } from './types';
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  host: process.env.DB_HOST,
+  port: parseInt(process.env.DB_PORT || '5432'),
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  ssl: { rejectUnauthorized: false },
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -19,9 +24,9 @@ export async function query<T extends QueryResultRow = any>(
     const result = await client.query<T>(text, params);
     const duration = Date.now() - start;
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("Executed query", {
-        text: text.substring(0, 100) + "...",
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Executed query', {
+        text: text.substring(0, 100) + '...',
         duration,
         rows: result.rowCount,
       });
@@ -29,7 +34,7 @@ export async function query<T extends QueryResultRow = any>(
 
     return result;
   } catch (error) {
-    console.error("Database query error:", error);
+    console.error('Database query error:', error);
     throw error;
   } finally {
     client.release();
@@ -50,7 +55,7 @@ export async function getStats(): Promise<DatabaseStats | null> {
 
     return result.rows[0] || null;
   } catch (error) {
-    console.error("Error getting stats:", error);
+    console.error('Error getting stats:', error);
     return null;
   }
 }
@@ -73,7 +78,7 @@ export async function getCommunityAreas(): Promise<CommunityAreaStats[]> {
 
     return result.rows;
   } catch (error) {
-    console.error("Error getting community areas:", error);
+    console.error('Error getting community areas:', error);
     return [];
   }
 }
@@ -125,7 +130,7 @@ export async function getStationsByCommunityArea(
     const result = await query<StationWithStats>(queryText, params);
     return result.rows;
   } catch (error) {
-    console.error("Error getting stations by community area:", error);
+    console.error('Error getting stations by community area:', error);
     return [];
   }
 }
@@ -134,9 +139,9 @@ export async function getStationsByCommunityArea(
 export async function testConnection(): Promise<boolean> {
   try {
     const client = await pool.connect();
-    const result = await client.query("SELECT NOW()");
-    console.log("✅ Database connection successful!");
-    console.log("Current time from DB:", result.rows[0].now);
+    const result = await client.query('SELECT NOW()');
+    console.log('✅ Database connection successful!');
+    console.log('Current time from DB:', result.rows[0].now);
 
     // Test tables exist
     const tableCheck = await client.query(`
@@ -149,12 +154,12 @@ export async function testConnection(): Promise<boolean> {
 
     if (tableCheck.rows.length === 3) {
       console.log(
-        "✅ All tables exist:",
+        '✅ All tables exist:',
         tableCheck.rows.map((r) => r.table_name)
       );
     } else {
       console.log(
-        "❌ Missing tables. Found:",
+        '❌ Missing tables. Found:',
         tableCheck.rows.map((r) => r.table_name)
       );
     }
@@ -162,7 +167,7 @@ export async function testConnection(): Promise<boolean> {
     client.release();
     return true;
   } catch (err) {
-    console.error("❌ Database connection error:", err);
+    console.error('❌ Database connection error:', err);
     return false;
   }
 }
@@ -193,7 +198,7 @@ export async function getAllStationsGrouped(): Promise<StationWithStats[]> {
 
     return result.rows;
   } catch (error) {
-    console.error("Error getting all grouped stations:", error);
+    console.error('Error getting all grouped stations:', error);
     return [];
   }
 }
@@ -246,7 +251,7 @@ export async function getStationsByCommunityAreaGrouped(
     const result = await query<StationWithStats>(queryText, params);
     return result.rows;
   } catch (error) {
-    console.error("Error getting stations by community area (grouped):", error);
+    console.error('Error getting stations by community area (grouped):', error);
     return [];
   }
 }
@@ -283,7 +288,7 @@ export async function searchStationsGrouped(
 
     return result.rows;
   } catch (error) {
-    console.error("Error searching stations (grouped):", error);
+    console.error('Error searching stations (grouped):', error);
     return [];
   }
 }
@@ -328,7 +333,7 @@ export async function getStationActivityOverTime(
     const result = await query(queryText, params);
     return result.rows;
   } catch (error) {
-    console.error("Error getting station activity over time:", error);
+    console.error('Error getting station activity over time:', error);
     return [];
   }
 }
