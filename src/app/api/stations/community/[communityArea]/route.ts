@@ -1,20 +1,17 @@
-// src/app/api/stations/community/[communityArea]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getStationsByCommunityAreaGrouped } from '@/lib/db';
 
-interface RouteParams {
-  communityArea: string;
-}
-
 export async function GET(
   request: NextRequest,
-  { params }: { params: RouteParams }
+  context: { params: Promise<{ communityArea: string }> }
 ) {
   try {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
     const month = searchParams.get('month');
 
+    // Await the params in Next.js 15
+    const params = await context.params;
     const communityArea = parseInt(params.communityArea);
 
     if (isNaN(communityArea)) {
