@@ -1,17 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getStationActivityOverTime } from "@/lib/db";
+import { NextRequest, NextResponse } from 'next/server';
+import { getStationActivityOverTime } from '@/lib/db';
 
-interface Params {
-  params: {
-    stationName: string;
-  };
+// Fix the interface - use the correct Next.js App Router pattern
+interface RouteParams {
+  stationName: string;
 }
 
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: RouteParams }
+) {
   try {
     const { searchParams } = new URL(request.url);
-    const startYear = searchParams.get("startYear");
-    const endYear = searchParams.get("endYear");
+    const startYear = searchParams.get('startYear');
+    const endYear = searchParams.get('endYear');
 
     const stationName = decodeURIComponent(params.stationName);
 
@@ -27,9 +29,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       count: activity.length,
     });
   } catch (error) {
-    console.error("Station activity API error:", error);
+    console.error('Station activity API error:', error);
     return NextResponse.json(
-      { error: "Failed to fetch station activity" },
+      { error: 'Failed to fetch station activity' },
       { status: 500 }
     );
   }
