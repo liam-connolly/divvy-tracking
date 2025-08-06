@@ -1,23 +1,22 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getStationsByCommunityAreaGrouped } from "@/lib/db";
+import { NextRequest, NextResponse } from 'next/server';
+import { getStationsByCommunityAreaGrouped } from '@/lib/db';
 
-interface Params {
-  params: {
-    communityArea: string;
-  };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ communityArea: string }> }
+) {
   try {
     const { searchParams } = new URL(request.url);
-    const year = searchParams.get("year");
-    const month = searchParams.get("month");
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
 
+    // Await the params in Next.js 15
+    const params = await context.params;
     const communityArea = parseInt(params.communityArea);
 
     if (isNaN(communityArea)) {
       return NextResponse.json(
-        { error: "Invalid community area number" },
+        { error: 'Invalid community area number' },
         { status: 400 }
       );
     }
@@ -38,9 +37,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       },
     });
   } catch (error) {
-    console.error("Stations by community area API error:", error);
+    console.error('Stations by community area API error:', error);
     return NextResponse.json(
-      { error: "Failed to fetch stations" },
+      { error: 'Failed to fetch stations' },
       { status: 500 }
     );
   }

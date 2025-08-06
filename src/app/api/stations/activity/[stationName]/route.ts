@@ -1,35 +1,45 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getStationActivityOverTime } from "@/lib/db";
+import { NextRequest, NextResponse } from 'next/server';
+import { getStationsByCommunityAreaGrouped } from '@/lib/db';
 
-interface Params {
-  params: {
-    stationName: string;
-  };
-}
-
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ communityArea: string }> }
+) {
   try {
     const { searchParams } = new URL(request.url);
-    const startYear = searchParams.get("startYear");
-    const endYear = searchParams.get("endYear");
+    const year = searchParams.get('year');
+    const month = searchParams.get('month');
 
-    const stationName = decodeURIComponent(params.stationName);
+    // Await the params in Next.js 15
+    const params = await context.params;
+    const communityArea = parseInt(params.communityArea);
 
-    const activity = await getStationActivityOverTime(
-      stationName,
-      startYear ? parseInt(startYear) : undefined,
-      endYear ? parseInt(endYear) : undefined
+    if (isNaN(communityArea)) {
+      return NextResponse.json(
+        { error: 'Invalid community area number' },
+        { status: 400 }
+      );
+    }
+
+    const stations = await getStationsByCommunityAreaGrouped(
+      communityArea,
+      year ? parseInt(year) : undefined,
+      month ? parseInt(month) : undefined
     );
 
     return NextResponse.json({
-      activity,
-      stationName,
-      count: activity.length,
+      stations,
+      communityArea,
+      count: stations.length,
+      filters: {
+        year: year ? parseInt(year) : null,
+        month: month ? parseInt(month) : null,
+      },
     });
   } catch (error) {
-    console.error("Station activity API error:", error);
+    console.error('Stations by community area API error:', error);
     return NextResponse.json(
-      { error: "Failed to fetch station activity" },
+      { error: 'Failed to fetch stations' },
       { status: 500 }
     );
   }
