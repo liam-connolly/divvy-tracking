@@ -338,4 +338,84 @@ export async function getStationActivityOverTime(
   }
 }
 
+// Get city-wide trip summary
+export async function getCityTripSummary(): Promise<{
+  total_trips: number;
+  total_stations: number;
+  unique_community_areas: number;
+} | null> {
+  try {
+    const result = await query(`
+      SELECT 
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart + sd.acoustic_arrive + sd.electric_arrive), 0) as total_trips,
+        (SELECT COUNT(DISTINCT s.id) FROM stations s WHERE s.community_area IS NOT NULL) as total_stations,
+        (SELECT COUNT(DISTINCT s.community_area) FROM stations s WHERE s.community_area IS NOT NULL) as unique_community_areas
+      FROM station_days sd
+      JOIN stations s ON sd.station_id = s.id
+      WHERE s.community_area IS NOT NULL
+    `);
+
+    return result.rows[0] || null;
+  } catch (error) {
+    console.error('Error getting city trip summary:', error);
+    return null;
+  }
+}
+
+// Get community areas with total trip counts
+export async function getCommunityAreasWithTripCounts(): Promise<Array<{
+  community_area: number;
+  community_area_name: string;
+  station_count: number;
+  total_trips: number;
+}>> {
+  try {
+    const result = await query(`
+      SELECT 
+        s.community_area,
+        s.community_area_name,
+        COUNT(DISTINCT s.id) as station_count,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart + sd.acoustic_arrive + sd.electric_arrive), 0) as total_trips
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      WHERE s.community_area IS NOT NULL
+      GROUP BY s.community_area, s.community_area_name
+      ORDER BY total_trips DESC
+    `);
+
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting community areas with trip counts:', error);
+    return [];
+  }
+}
+
+// Get stations with total trip counts
+export async function getStationsWithTripCounts(): Promise<Array<{
+  id: number;
+  name: string;
+  community_area_name: string | null;
+  total_trips: number;
+}>> {
+  try {
+    const result = await query(`
+      SELECT 
+        MIN(s.id) as id,
+        s.name,
+        MIN(s.community_area_name) as community_area_name,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart + sd.acoustic_arrive + sd.electric_arrive), 0) as total_trips
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      WHERE s.community_area IS NOT NULL
+      GROUP BY s.name
+      ORDER BY total_trips DESC
+    `);
+
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting stations with trip counts:', error);
+    return [];
+  }
+}
+
 export default pool;
