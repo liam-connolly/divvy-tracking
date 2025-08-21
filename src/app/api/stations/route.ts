@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAllStationsGrouped } from "@/lib/db";
+import { getStationsForFilter } from "@/lib/db";
 
 export async function GET() {
   try {
-    const stations = await getAllStationsGrouped();
+    const stations = await getStationsForFilter();
 
     return NextResponse.json({
       stations,

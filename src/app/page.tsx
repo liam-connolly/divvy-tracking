@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import ViewSelector, { ViewType } from '@/components/ViewSelector';
 import TripDataDisplay from '@/components/TripDataDisplay';
+import FilterContainer from '@/components/FilterContainer';
+import FilteredTripDataDisplay from '@/components/FilteredTripDataDisplay';
+import { Grid, Divider } from '@mui/material';
+import { Station, CommunityArea, FilterType } from '@/types';
 
 interface CityData {
   total_trips: number;
@@ -41,6 +45,15 @@ export default function Home() {
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filter state
+  const [filterType, setFilterType] = useState<FilterType>('none');
+  const [selectedStation, setSelectedStation] = useState<Station | null>(null);
+  const [selectedCommunityArea, setSelectedCommunityArea] =
+    useState<CommunityArea | null>(null);
+  const [filteredData, setFilteredData] = useState<any>(null);
+  const [filteredLoading, setFilteredLoading] = useState(false);
+  const [filteredError, setFilteredError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTripData = async () => {
@@ -93,6 +106,89 @@ export default function Home() {
     fetchStats();
   }, []);
 
+  // Fetch filtered data when filters change
+  useEffect(() => {
+    const fetchFilteredData = async () => {
+      if (filterType === 'none') {
+        setFilteredData(null);
+        return;
+      }
+
+      try {
+        setFilteredLoading(true);
+        setFilteredError(null);
+
+        let url = '/api/trips/filtered?';
+        const params = new URLSearchParams();
+
+        if (filterType === 'station' && selectedStation) {
+          params.append('type', 'station');
+          params.append('station', selectedStation.name);
+        } else if (filterType === 'community-area' && selectedCommunityArea) {
+          params.append('type', 'community-area');
+          params.append(
+            'communityArea',
+            selectedCommunityArea.community_area.toString()
+          );
+        } else {
+          setFilteredData(null);
+          setFilteredLoading(false);
+          return;
+        }
+
+        url += params.toString();
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to fetch filtered data: ${response.statusText}`
+          );
+        }
+
+        const result = await response.json();
+        setFilteredData(result.data);
+      } catch (err) {
+        setFilteredError(
+          err instanceof Error ? err.message : 'Failed to fetch filtered data'
+        );
+      } finally {
+        setFilteredLoading(false);
+      }
+    };
+
+    fetchFilteredData();
+  }, [filterType, selectedStation, selectedCommunityArea]);
+
+  // Filter event handlers
+  const handleFilterTypeChange = (type: FilterType) => {
+    setFilterType(type);
+    if (type !== 'station') setSelectedStation(null);
+    if (type !== 'community-area') setSelectedCommunityArea(null);
+  };
+
+  const handleStationSelect = (station: Station | null) => {
+    setSelectedStation(station);
+    if (station) {
+      setFilterType('station');
+      setSelectedCommunityArea(null);
+    }
+  };
+
+  const handleCommunityAreaSelect = (communityArea: CommunityArea | null) => {
+    setSelectedCommunityArea(communityArea);
+    if (communityArea) {
+      setFilterType('community-area');
+      setSelectedStation(null);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setFilterType('none');
+    setSelectedStation(null);
+    setSelectedCommunityArea(null);
+    setFilteredData(null);
+  };
+
   if (loading) {
     return (
       <div className='min-h-screen flex items-center justify-center'>
@@ -116,32 +212,62 @@ export default function Home() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-50 py-8'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-        {/* Header */}
-        <div className='text-center mb-12'>
-          <h1 className='text-4xl font-bold text-gray-900 mb-4'>
-            🚲 Divvy Analytics Dashboard
-          </h1>
-          <p className='text-lg text-gray-600'>
-            Chicago Bike Share Data Analysis
-          </p>
-        </div>
+    <main>
+      <Grid
+        container
+        justifyContent='center'
+        columns={{ xs: 6, sm: 8, md: 8, lg: 12 }}
+        height='90vh'
+        width='97vw'
+      >
+        <Grid
+          size={{ xs: 6 }}
+          sx={{
+            height: '100%',
+            display: 'flex',
+            alignItems: 'stretch',
+            flexDirection: 'column',
+          }}
+        >
+          <div className=' bg-gray-50 py-8'>
+            <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
+              {/* Header */}
+              <div className='text-center mb-12'>
+                <h1 className='text-4xl font-bold text-gray-900 mb-4'>
+                  🚲 Divvy Analytics Dashboard
+                </h1>
+                <p className='text-lg text-gray-600'>
+                  Chicago Bike Share Data Analysis
+                </p>
+              </div>
 
-        {/* View Selector */}
-        <ViewSelector
-          selectedView={selectedView}
-          onViewChange={setSelectedView}
-        />
+              {/* Filter Container */}
+              <FilterContainer
+                filterType={filterType}
+                selectedStation={selectedStation}
+                selectedCommunityArea={selectedCommunityArea}
+                onFilterTypeChange={handleFilterTypeChange}
+                onStationSelect={handleStationSelect}
+                onCommunityAreaSelect={handleCommunityAreaSelect}
+                onClearFilters={handleClearFilters}
+              />
 
-        {/* Trip Data Display */}
-        <TripDataDisplay
-          viewType={selectedView}
-          data={tripData}
-          loading={loading}
-          error={error}
-        />
-      </div>
-    </div>
+              {/* Filtered Data Display */}
+              {filterType !== 'none' && (
+                <>
+                  <FilteredTripDataDisplay
+                    data={filteredData}
+                    filterType={filterType}
+                    loading={filteredLoading}
+                    error={filteredError}
+                  />
+                  <Divider sx={{ my: 4 }} />
+                </>
+              )}
+            </div>
+          </div>
+        </Grid>
+      </Grid>
+    </main>
   );
 }

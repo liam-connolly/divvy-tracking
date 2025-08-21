@@ -418,4 +418,156 @@ export async function getStationsWithTripCounts(): Promise<Array<{
   }
 }
 
+// Get simple list of community areas for filtering
+export async function getCommunityAreasForFilter(): Promise<Array<{
+  community_area: number;
+  community_area_name: string;
+}>> {
+  try {
+    const result = await query(`
+      SELECT DISTINCT
+        community_area,
+        community_area_name
+      FROM stations 
+      WHERE community_area IS NOT NULL
+      AND community_area_name IS NOT NULL
+      ORDER BY community_area_name
+    `);
+
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting community areas for filter:', error);
+    return [];
+  }
+}
+
+// Get simple list of stations for filtering
+export async function getStationsForFilter(): Promise<Array<{
+  id: number;
+  name: string;
+  community_area: number | null;
+  community_area_name: string | null;
+}>> {
+  try {
+    const result = await query(`
+      SELECT DISTINCT
+        MIN(id) as id,
+        name,
+        MIN(community_area) as community_area,
+        MIN(community_area_name) as community_area_name
+      FROM stations 
+      WHERE community_area IS NOT NULL
+      GROUP BY name
+      ORDER BY name
+    `);
+
+    return result.rows;
+  } catch (error) {
+    console.error('Error getting stations for filter:', error);
+    return [];
+  }
+}
+
+// Get trip data filtered by station
+export async function getTripDataByStation(stationName: string): Promise<{
+  total_trips: number;
+  acoustic_trips: number;
+  electric_trips: number;
+  total_departures: number;
+  total_arrivals: number;
+  station_info: {
+    name: string;
+    community_area_name: string | null;
+    community_area: number | null;
+  } | null;
+} | null> {
+  try {
+    const result = await query(`
+      SELECT 
+        s.name,
+        MIN(s.community_area_name) as community_area_name,
+        MIN(s.community_area) as community_area,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart + sd.acoustic_arrive + sd.electric_arrive), 0) as total_trips,
+        COALESCE(SUM(sd.acoustic_depart + sd.acoustic_arrive), 0) as acoustic_trips,
+        COALESCE(SUM(sd.electric_depart + sd.electric_arrive), 0) as electric_trips,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart), 0) as total_departures,
+        COALESCE(SUM(sd.acoustic_arrive + sd.electric_arrive), 0) as total_arrivals
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      WHERE s.name = $1
+      GROUP BY s.name
+    `, [stationName]);
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      total_trips: parseInt(row.total_trips),
+      acoustic_trips: parseInt(row.acoustic_trips),
+      electric_trips: parseInt(row.electric_trips),
+      total_departures: parseInt(row.total_departures),
+      total_arrivals: parseInt(row.total_arrivals),
+      station_info: {
+        name: row.name,
+        community_area_name: row.community_area_name,
+        community_area: row.community_area,
+      }
+    };
+  } catch (error) {
+    console.error('Error getting trip data by station:', error);
+    return null;
+  }
+}
+
+// Get trip data filtered by community area
+export async function getTripDataByCommunityArea(communityArea: number): Promise<{
+  total_trips: number;
+  acoustic_trips: number;
+  electric_trips: number;
+  total_departures: number;
+  total_arrivals: number;
+  station_count: number;
+  community_area_info: {
+    community_area: number;
+    community_area_name: string;
+  } | null;
+} | null> {
+  try {
+    const result = await query(`
+      SELECT 
+        MIN(s.community_area) as community_area,
+        MIN(s.community_area_name) as community_area_name,
+        COUNT(DISTINCT s.id) as station_count,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart + sd.acoustic_arrive + sd.electric_arrive), 0) as total_trips,
+        COALESCE(SUM(sd.acoustic_depart + sd.acoustic_arrive), 0) as acoustic_trips,
+        COALESCE(SUM(sd.electric_depart + sd.electric_arrive), 0) as electric_trips,
+        COALESCE(SUM(sd.acoustic_depart + sd.electric_depart), 0) as total_departures,
+        COALESCE(SUM(sd.acoustic_arrive + sd.electric_arrive), 0) as total_arrivals
+      FROM stations s
+      LEFT JOIN station_days sd ON s.id = sd.station_id
+      WHERE s.community_area = $1
+      GROUP BY s.community_area
+    `, [communityArea]);
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      total_trips: parseInt(row.total_trips),
+      acoustic_trips: parseInt(row.acoustic_trips),
+      electric_trips: parseInt(row.electric_trips),
+      total_departures: parseInt(row.total_departures),
+      total_arrivals: parseInt(row.total_arrivals),
+      station_count: parseInt(row.station_count),
+      community_area_info: {
+        community_area: row.community_area,
+        community_area_name: row.community_area_name,
+      }
+    };
+  } catch (error) {
+    console.error('Error getting trip data by community area:', error);
+    return null;
+  }
+}
+
 export default pool;

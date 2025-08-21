@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCommunityAreas } from "@/lib/db";
+import { getCommunityAreasForFilter } from "@/lib/db";
 
 export async function GET() {
   try {
-    const communityAreas = await getCommunityAreas();
+    const communityAreas = await getCommunityAreasForFilter();
 
     return NextResponse.json({
       communityAreas,
