@@ -100,7 +100,7 @@ export default function ContentContainer() {
 
       {/* Don't lose state when FAQ is opened */}
       <Box sx={{ display: faqOpen ? 'none' : 'block', height: '100%' }}>
-        <div className='bg-gray-50 py-8'>
+        <div className=' py-8'>
           <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
             {/* View Selector */}
             <ViewSelector

@@ -36,10 +36,15 @@ export default function TripDataDisplay({
   error,
 }: TripDataDisplayProps) {
   // Debug logging
-  console.log('TripDataDisplay:', { viewType, dataType: typeof data, isArray: Array.isArray(data), data });
+  console.log('TripDataDisplay:', {
+    viewType,
+    dataType: typeof data,
+    isArray: Array.isArray(data),
+    data,
+  });
   if (loading) {
     return (
-      <div className='bg-white rounded-lg shadow-md p-6'>
+      <div className='bg-white rounded-lg p-6'>
         <div className='animate-pulse'>
           <div className='h-6 bg-gray-200 rounded w-1/3 mb-4'></div>
           <div className='space-y-3'>
@@ -54,7 +59,7 @@ export default function TripDataDisplay({
 
   if (error) {
     return (
-      <div className='bg-white rounded-lg shadow-md p-6'>
+      <div className='bg-white rounded-lg p-6'>
         <div className='text-red-600 text-center'>
           <h3 className='text-lg font-semibold mb-2'>Error</h3>
           <p>{error}</p>
@@ -65,7 +70,7 @@ export default function TripDataDisplay({
 
   if (!data) {
     return (
-      <div className='bg-white rounded-lg shadow-md p-6'>
+      <div className='bg-white rounded-lg  p-6'>
         <div className='text-gray-500 text-center'>No data available</div>
       </div>
     );
@@ -74,25 +79,25 @@ export default function TripDataDisplay({
   if (viewType === 'city') {
     const cityData = data as CityData;
     return (
-      <div className='bg-white rounded-lg shadow-md p-6'>
+      <div className='bg-white rounded-lg  p-6'>
         <h2 className='text-2xl font-bold text-gray-900 mb-6 font-big-shoulders'>
           City-wide Trip Summary
         </h2>
         <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
           <div className='text-center'>
-            <div className='text-4xl font-bold text-blue-600'>
+            <div className='text-4xl font-bold'>
               {cityData.total_trips?.toLocaleString() || 'N/A'}
             </div>
             <div className='text-sm text-gray-500 mt-1'>Total Trips</div>
           </div>
           <div className='text-center'>
-            <div className='text-4xl font-bold text-green-600'>
+            <div className='text-4xl font-bold '>
               {cityData.total_stations?.toLocaleString() || 'N/A'}
             </div>
             <div className='text-sm text-gray-500 mt-1'>Active Stations</div>
           </div>
           <div className='text-center'>
-            <div className='text-4xl font-bold text-purple-600'>
+            <div className='text-4xl font-bold '>
               {cityData.unique_community_areas || 'N/A'}
             </div>
             <div className='text-sm text-gray-500 mt-1'>Community Areas</div>
@@ -103,18 +108,22 @@ export default function TripDataDisplay({
   }
 
   if (viewType === 'community') {
-    const communityData = Array.isArray(data) ? data as CommunityAreaData[] : [];
-    
+    const communityData = Array.isArray(data)
+      ? (data as CommunityAreaData[])
+      : [];
+
     if (communityData.length === 0) {
       return (
-        <div className='bg-white rounded-lg shadow-md p-6'>
-          <div className='text-gray-500 text-center'>No community area data available</div>
+        <div className='bg-white rounded-lg p-6'>
+          <div className='text-gray-500 text-center'>
+            No community area data available
+          </div>
         </div>
       );
     }
-    
+
     return (
-      <div className='bg-white rounded-lg shadow-md p-6'>
+      <div className='bg-white rounded-lg  p-6'>
         <h2 className='text-2xl font-bold text-gray-900 mb-6 font-big-shoulders'>
           Community Areas by Trip Volume
         </h2>
@@ -167,25 +176,24 @@ export default function TripDataDisplay({
   }
 
   if (viewType === 'stations') {
-    const stationData = Array.isArray(data) ? data as StationData[] : [];
-    
+    const stationData = Array.isArray(data) ? (data as StationData[]) : [];
+
     if (stationData.length === 0) {
       return (
-        <div className='bg-white rounded-lg shadow-md p-6'>
-          <div className='text-gray-500 text-center'>No station data available</div>
+        <div className='bg-white rounded-lg p-6'>
+          <div className='text-gray-500 text-center'>
+            No station data available
+          </div>
         </div>
       );
     }
-    
+
     const topStations = stationData.slice(0, 50); // Show top 50 stations
 
     return (
-      <div className='bg-white rounded-lg shadow-md p-6'>
+      <div className='bg-white rounded-lg  p-6'>
         <h2 className='text-2xl font-bold text-gray-900 mb-6 font-big-shoulders'>
           Top Stations by Trip Volume
-          <span className='text-sm font-normal text-gray-500 ml-2'>
-            (Showing top 50 of {stationData.length})
-          </span>
         </h2>
         <div className='overflow-x-auto'>
           <table className='min-w-full table-auto'>
