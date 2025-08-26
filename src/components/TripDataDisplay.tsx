@@ -75,7 +75,7 @@ export default function TripDataDisplay({
     const cityData = data as CityData;
     return (
       <div className='bg-white rounded-lg shadow-md p-6'>
-        <h2 className='text-2xl font-bold text-gray-900 mb-6'>
+        <h2 className='text-2xl font-bold text-gray-900 mb-6 font-big-shoulders'>
           City-wide Trip Summary
         </h2>
         <div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
@@ -115,7 +115,7 @@ export default function TripDataDisplay({
     
     return (
       <div className='bg-white rounded-lg shadow-md p-6'>
-        <h2 className='text-2xl font-bold text-gray-900 mb-6'>
+        <h2 className='text-2xl font-bold text-gray-900 mb-6 font-big-shoulders'>
           Community Areas by Trip Volume
         </h2>
         <div className='overflow-x-auto'>
@@ -181,7 +181,7 @@ export default function TripDataDisplay({
 
     return (
       <div className='bg-white rounded-lg shadow-md p-6'>
-        <h2 className='text-2xl font-bold text-gray-900 mb-6'>
+        <h2 className='text-2xl font-bold text-gray-900 mb-6 font-big-shoulders'>
           Top Stations by Trip Volume
           <span className='text-sm font-normal text-gray-500 ml-2'>
             (Showing top 50 of {stationData.length})
