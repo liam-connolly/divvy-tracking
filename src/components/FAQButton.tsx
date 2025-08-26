@@ -11,26 +11,34 @@ export default function FAQButton() {
   return faq ? (
     <Button
       onClick={() => setFaq(null)}
-      variant='outlined'
-      startIcon={<CloseIcon />}
       sx={{
+        flexDirection: 'column',
+        color: 'black',
+        border: 'none',
         '&:hover': {
-          backgroundColor: 'primary.main',
+          backgroundColor: 'black',
           color: 'white',
         },
       }}
-    ></Button>
+    >
+      <CloseIcon />
+      <Typography>Back</Typography>
+    </Button>
   ) : (
     <Button
       onClick={() => setFaq('open')}
-      variant='outlined'
-      startIcon={<HelpIcon />}
       sx={{
+        flexDirection: 'column',
+        color: 'black',
+        border: 'none',
         '&:hover': {
-          backgroundColor: 'primary.main',
+          backgroundColor: 'black',
           color: 'white',
         },
       }}
-    ></Button>
+    >
+      <HelpIcon />
+      <Typography>FAQ</Typography>
+    </Button>
   );
 }
