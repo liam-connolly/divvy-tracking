@@ -29,22 +29,27 @@ export default function Home() {
               alignItems: 'center',
               marginTop: 16,
               marginBottom: 24,
+              flexWrap: 'nowrap',
+              gap: '8px',
             }}
           >
             <Typography
-              variant='h4'
+              variant='h5'
               component='h1'
               className='font-big-shoulders'
               sx={{
                 fontWeight: 700,
                 color: 'text.primary',
+                fontSize: { xs: '1.8rem', sm: '2.1rem', md: '2rem' },
+                lineHeight: 1.2,
+                pl: { xs: 2, sm: 3 },
               }}
             >
               <span style={{ color: '#E4002B', marginRight: '8px' }}>✶</span>
-              Divvy Analytics Dashboard
+              Chicago Divvy Data
             </Typography>
 
-            <Box sx={{ display: 'flex-item' }}>
+            <Box sx={{ flexShrink: 0 }}>
               <React.Suspense>
                 <FAQButton />
               </React.Suspense>

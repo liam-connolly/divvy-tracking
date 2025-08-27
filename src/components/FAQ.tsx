@@ -3,15 +3,20 @@ import { Box, Typography } from '@mui/material';
 
 export default function FAQ() {
   return (
-    <Box sx={{ pb: '10vh' }}>
+    <Box sx={{ 
+      pb: '10vh', 
+      px: { xs: 2, sm: 3, md: 0 },
+      mx: { xs: 0, md: 'auto' }
+    }}>
       <Typography
-        variant='h5'
+        variant='h6'
         component='h2'
         sx={{
           fontFamily: 'Big Shoulders, sans-serif',
           fontWeight: 700,
           marginTop: 2,
           mb: 3,
+          fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' }
         }}
       >
         Frequently Asked Questions
