@@ -1,7 +1,7 @@
 import ContentContainer from '@/components/ContentContainer';
 import FAQButton from '@/components/FAQButton';
 import React from 'react';
-import { Box, Grid, Typography } from '@mui/material';
+import { Alert, Box, Grid, Typography } from '@mui/material';
 
 export default function Home() {
   return (
@@ -55,6 +55,16 @@ export default function Home() {
               </React.Suspense>
             </Box>
           </div>
+
+          <Alert
+            severity="info"
+            sx={{
+              mx: { xs: 2, sm: 3 },
+              mb: 3
+            }}
+          >
+            This project is currently on pause. Data display is temporarily unavailable.
+          </Alert>
 
           <React.Suspense
             fallback={
